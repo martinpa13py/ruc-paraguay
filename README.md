@@ -8,18 +8,18 @@ Descargar, buscar y brindar información sobre los numeros de RUC desde la fuent
 
 Use composer to install the package, just run this comamnd to add it to the composer.json
 
-`composer require pabloacastillo/ruc-paraguay`
+`composer require martinpa13py/ruc-paraguay`
 
 
 The autodiscovery option should take care of things, but if that doesnt work follow the next steps.
 
 Add the package to config/app.php to the providers list:
 
-`pabloacastillo\RUCParaguay\RUCParaguayServiceProvider::class`
+`martinpa13py\RUCParaguay\RUCParaguayServiceProvider::class`
 
 Add the package to config/app.php to the aliases list:
 
-`'RUCParaguay' => pabloacastillo\RUCParaguay\Facades\RUCParaguayFacade::class`
+`'RUCParaguay' => martinpa13py\RUCParaguay\Facades\RUCParaguayFacade::class`
 
 
 
