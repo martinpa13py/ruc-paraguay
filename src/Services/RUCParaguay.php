@@ -1,6 +1,6 @@
 <?php 
 namespace martinpa13py\RUCParaguay\Services;
-use pabloacastillo\RUCParaguay\Models\RucParaguaySet;
+use martinpa13py\RUCParaguay\Models\RucParaguaySet;
 
 
 class RUCParaguay{

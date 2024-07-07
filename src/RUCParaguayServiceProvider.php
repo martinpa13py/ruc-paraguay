@@ -2,7 +2,7 @@
 
 namespace martinpa13py\RUCParaguay;
 use Illuminate\Support\ServiceProvider;
-use pabloacastillo\RUCParaguay\Services\RUCParaguay;
+use martinpa13py\RUCParaguay\Services\RUCParaguay;
 use Storage;
 use GuzzleHttp\Client;
 
@@ -12,8 +12,8 @@ class RUCParaguayServiceProvider extends ServiceProvider{
 
 	public function boot(){
 		$this->commands([
-			\pabloacastillo\RUCParaguay\Console\Commands\RucParaguayCmdUpdate::class,
-			\pabloacastillo\RUCParaguay\Console\Commands\RucParaguayCmdSearch::class,
+			\martinpa13py\RUCParaguay\Console\Commands\RucParaguayCmdUpdate::class,
+			\martinpa13py\RUCParaguay\Console\Commands\RucParaguayCmdSearch::class,
 		]);
 
 		$this->loadMigrationsFrom(__DIR__.'/database/migrations/');
