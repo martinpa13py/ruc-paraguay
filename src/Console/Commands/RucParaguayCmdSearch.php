@@ -1,10 +1,10 @@
 <?php
 
-namespace pabloacastillo\RUCParaguay\Console\Commands;
+namespace martinpa13py\RUCParaguay\Console\Commands;
 
 use Illuminate\Console\Command;
-use pabloacastillo\RUCParaguay\Models\RucParaguaySet;
-use pabloacastillo\RUCParaguay\Services\RUCParaguay;
+use martinpa13py\RUCParaguay\Models\RucParaguaySet;
+use martinpa13py\RUCParaguay\Services\RUCParaguay;
 
 
 class RucParaguayCmdSearch extends Command

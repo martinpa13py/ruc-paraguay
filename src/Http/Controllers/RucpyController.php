@@ -1,6 +1,6 @@
 <?php
 
-namespace pabloacastillo\RUCParaguay\Http\Controllers;
+namespace martinpa13py\RUCParaguay\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 
@@ -9,7 +9,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use ZipArchive;
 
-use pabloacastillo\RUCParaguay\Models\RucParaguaySet;
+use martinpa13py\RUCParaguay\Models\RucParaguaySet;
 
 class RucpyController extends Controller
 {
