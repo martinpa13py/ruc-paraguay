@@ -1,6 +1,6 @@
 <?php
 
-namespace pabloacastillo\RUCParaguay\Models;
+namespace martinpa13py\RUCParaguay\Models;
 
 use Illuminate\Database\Eloquent\Model;
 

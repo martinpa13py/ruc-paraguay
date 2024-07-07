@@ -1,6 +1,6 @@
 <?php 
 
-namespace pabloacastillo\RUCParaguay;
+namespace martinpa13py\RUCParaguay;
 use Illuminate\Support\ServiceProvider;
 use pabloacastillo\RUCParaguay\Services\RUCParaguay;
 use Storage;

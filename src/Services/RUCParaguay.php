@@ -1,5 +1,5 @@
 <?php 
-namespace pabloacastillo\RUCParaguay\Services;
+namespace martinpa13py\RUCParaguay\Services;
 use pabloacastillo\RUCParaguay\Models\RucParaguaySet;
 
 

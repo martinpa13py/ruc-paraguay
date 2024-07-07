@@ -1,6 +1,6 @@
 <?php
 
-namespace pabloacastillo\RUCParaguay\Console\Commands;
+namespace martinpa13py\RUCParaguay\Console\Commands;
 
 use Illuminate\Console\Command;
 
