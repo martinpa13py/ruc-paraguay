@@ -35,6 +35,6 @@ class CreateRucParaguaySetsTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('ruc_paraguay_sets');
+        
     }
 }
