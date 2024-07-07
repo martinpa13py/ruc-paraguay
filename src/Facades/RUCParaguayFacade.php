@@ -1,5 +1,5 @@
 <?php 
-namespace pabloacastillo\RUCParaguay\Facades;
+namespace martinpa13py\RUCParaguay\Facades;
 
 use Illuminate\Support\Facades\Facade;
 
