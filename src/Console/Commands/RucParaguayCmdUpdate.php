@@ -40,7 +40,7 @@ class RucParaguayCmdUpdate extends Command
         //
         echo "\n========== STARTING ========== \n";
         echo "========== DOWNLOADING ========== \n";
-        app('martinpa13py\RUCParaguay\Http\Controllers\RucpyController')->Download();
+        app('martinpa13py\RUCParaguay\Http\Controllers\RucpyController')->download();
         echo "\n========== FINISHED ========== \n\n";
     }
 }
