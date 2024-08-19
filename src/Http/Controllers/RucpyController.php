@@ -3,138 +3,142 @@
 namespace martinpa13py\RUCParaguay\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-
-use Storage;
-use ZipArchive;
-
+use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Storage;
 use martinpa13py\RUCParaguay\Models\RucParaguaySet;
+use ZipArchive;
 
 class RucpyController extends Controller
 {
-    //
-	protected $url		= 'https://www.dnit.gov.py/documents/20123/976078/';
-	protected $folder   = 'ruc-paraguay';
+    protected string $url 			= 'https://www.dnit.gov.py/documents/20123/976078/';
+    protected string $folder 		= 'ruc-paraguay';
+    protected int $cacheDuration 	= 3600 * 24 * 2; // 2 days
 
-	public function search(string $busqueda)
-	{
-		
-		$records = RucParaguaySet::query()
-			->where('nro_ruc','LIKE',"%{$busqueda}%")
-			->orWhere('denominacion','LIKE',"%{$busqueda}%")
-			->orWhere('ruc_anterior','LIKE',"%{$busqueda}%")
-		->get();
-		
-		return $records;
-	}
+    public function search(string $busqueda)
+    {
+        return RucParaguaySet::query()
+            ->where('nro_ruc', 'LIKE', "%{$busqueda}%")
+            ->orWhere('denominacion', 'LIKE', "%{$busqueda}%")
+            ->orWhere('ruc_anterior', 'LIKE', "%{$busqueda}%")
+        ->get();
+    }
 
-	public function add(array | bool $data)
-	{
-		if($data === false) 
-		{ 
-			return false; 
-		}
+    public function add(array $data): bool
+    {
+        return RucParaguaySet::create($data) !== null;
+    }
 
-		return RucParaguaySet::create($data);
-	}
+    public function download()
+    {
+        $startTime 		= time();
+        $storagePath 	= Storage::disk('local')->path($this->folder);
+        $client 		= new Client();
+        $newData 		= false;
 
-	public function download(){
+        if (!Storage::disk('local')->exists($this->folder)) {
+            Storage::disk('local')->makeDirectory($this->folder, 0775, true);
+        }
 
-		$_START			=	time(); 
-		$storagePath 	= 	Storage::disk('local')->path($this->folder);
-	 	$client 		= 	new \GuzzleHttp\Client();
-	 	$now 			= 	(3600 * 24 * 2); // ACTUALIZAR CADA 2 DIAS
-	 	$NEW_DATA		=	false;
+        foreach (range(0, 9) as $i) {
+            $filePath 	= "ruc{$i}.zip";
+            $url 		= "{$this->url}{$filePath}";
 
-	 	if(!Storage::disk('local')->exists($this->folder) ){
-	 		echo "\n-> CREATE DIRECTORY $storagePath \n";
-	 		Storage::disk('local')->makeDirectory($this->folder, 0775, true);
-	 	}
-	 	echo "\n-> LOCAL FOLDER: $storagePath \n";
+            if ($this->isCached($filePath)) {
+                continue;
+            }
 
-	 	for($i=0;$i<=9;$i++){
-	 		$file_path='ruc'.$i.'.zip';
-	 		$URL = ($this->url).$file_path;
+            $newData = true;
+            $client->get($url, ['sink' => "{$storagePath}/{$filePath}"]);
+        }
 
-	 		echo "\n-> URL: $URL";
+        if (!$newData) {
+            echo 'No new data to import';
+            return;
+        }
 
-	 		if( Storage::disk('local')->exists($this->folder.'/'.$file_path) ){
-	 			if ( (time() - (Storage::disk('local')->lastModified($this->folder.'/'.$file_path))) < $now ) {
-	 				echo "\n-> DOWNLOADED: ".$storagePath.'/'.$file_path." \n";
-	 				continue;
-	 			}
-	 		}
-	 		$NEW_DATA=true;
-	 		echo "\n-> DOWNLOADING: ".$storagePath.'/'.$file_path." \n";
-	 		$response = $client->request('GET',$URL, ['sink' => $storagePath.'/'.$file_path]);
-	 	}
+        $this->extractAndImportData($storagePath);
 
-	 	if($NEW_DATA==false) { 
-	 		echo 'NO NEW DATA TO IMPORT';
-	 		return ''; 
-	 	}
+        echo "\nCompleted in " . (time() - $startTime) . " seconds\n";
+    }
 
-	 	foreach (Storage::disk('local')->files($this->folder) as $ZIPPED_FILE) {
-	 		if( strtolower(substr($ZIPPED_FILE, -4)) == '.zip' ){
-	 			$local_zip = Storage::disk('local')->path($ZIPPED_FILE);
-	 			echo "\n";
-	 			echo $local_zip;
-	 			echo "\n";
-	 			$zip = new ZipArchive;
-	 			if ($zip->open($local_zip) === TRUE){
-	 				$zip->extractTo($storagePath);
-	 				$zip->close();
-	 			} else {
-	 				Storage::disk('local')->delete($ZIPPED_FILE);
-	 			}
-	 		}
-	 	}
+    protected function isCached(string $filePath): bool
+    {
+        if (Storage::disk('local')->exists("{$this->folder}/{$filePath}")) {
+            $lastModified = Storage::disk('local')->lastModified("{$this->folder}/{$filePath}");
+            return (time() - $lastModified) < $this->cacheDuration;
+        }
+        return false;
+    }
 
-	 	RucParaguaySet::truncate();
+    protected function extractAndImportData(string $storagePath): void
+    {
+        $this->extractZipFiles($storagePath);
+        RucParaguaySet::truncate();
 
-	 	foreach (Storage::disk('local')->files($this->folder) as $TXT_FILE) {
-	 		if( strtolower(substr($TXT_FILE, -4)) == '.txt' ){
-	 			$local_txt = Storage::disk('local')->path($TXT_FILE);
-	 			echo "\nSTARTING IMPORT FROM $local_txt \n";
-	 			$file = fopen($local_txt, "r");
-				while(!feof($file)) {
-					$line = fgets($file);
-					if ( rand(0,10)<3 ){ echo($line); }
-					$data=$this->txt2ruc($line);
-					$record=$this->add($data);
-				}
+        foreach (Storage::disk('local')->files($this->folder) as $txtFile) {
+            if (strtolower(pathinfo($txtFile, PATHINFO_EXTENSION)) === 'txt') {
+                $this->importDataFromTxt($txtFile);
+            }
+        }
+    }
 
-				fclose($file);
-	 			echo "\nENDED IMPORT FROM $local_txt \n";
-	 		}
-	 	}
+    protected function extractZipFiles(string $storagePath): void
+    {
+        foreach (Storage::disk('local')->files($this->folder) as $zipFile) {
+            if (strtolower(pathinfo($zipFile, PATHINFO_EXTENSION)) === 'zip') {
+                $this->extractZip($zipFile, $storagePath);
+            }
+        }
+    }
 
-	 	echo "\n TERMINADO EN: ";
-	 	echo ((time()-$_START));
-	 	echo " segundos \n";
-	}
+    protected function extractZip(string $zipFile, string $storagePath): void
+    {
+        $localZip = Storage::disk('local')->path($zipFile);
+        $zip = new ZipArchive;
 
-	public function txt2ruc($line){
-		
-		$line 		= str_replace('||', '|', $line);
-		$data		= explode('|',$line);
-	 	$_DEFAULT 	= array( 'nro_ruc'=>'----' , 'denominacion'=>'---' , 'digito_verificador'=>'-' , 'ruc_anterior'=>'--' );
-	 	$_data		= array();
+        if ($zip->open($localZip) === true) {
+            $zip->extractTo($storagePath);
+            $zip->close();
+        } else {
+            Storage::disk('local')->delete($zipFile);
+        }
+    }
 
-	 	if(count($data)!== 5) {
-			 return false; 
-		}
+    protected function importDataFromTxt(string $txtFile): void
+    {
+        $localTxt = Storage::disk('local')->path($txtFile);
 
-	 	$_data['nro_ruc']				=	$data[0];
-	 	$_data['denominacion']			=	$data[1];
-	 	$_data['digito_verificador']	=	$data[2];
-	 	$_data['ruc_anterior']			=	$data[3];
+        if (($file = fopen($localTxt, 'r')) !== false) {
+            while (($line = fgets($file)) !== false) {
+                $data = $this->txt2ruc($line);
+                if ($data) {
+                    $this->add($data);
+                }
+            }
+            fclose($file);
+        }
+    }
 
-		$_data = array_filter($_data,'trim');
-		
-		$_data = array_merge($_DEFAULT,$_data);
+    protected function txt2ruc(string $line): ?array
+    {
+        $line = str_replace('||', '|', $line);
+        $data = explode('|', $line);
 
-		return $_data;
-	}
+        if (count($data) !== 5) {
+            return null;
+        }
 
+        return array_merge([
+            'nro_ruc' 				=> '----',
+            'denominacion' 			=> '---',
+            'digito_verificador' 	=> '-',
+            'ruc_anterior' 			=> '--'
+        ], array_filter([
+            'nro_ruc' 				=> $data[0],
+            'denominacion' 			=> $data[1],
+            'digito_verificador' 	=> $data[2],
+            'ruc_anterior' 			=> $data[3]
+        ], 'trim'));
+    }
 }
 
