@@ -22,7 +22,7 @@ class CreateRucParaguaySetsTable extends Migration
                 $table->string('denominacion',512);
                 $table->string('digito_verificador',8);
                 $table->string('ruc_anterior',32);
-                $table->string('estado',19);
+                $table->string('estado',40);
                 $table->timestamps();
             });
             
