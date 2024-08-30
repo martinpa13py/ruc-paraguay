@@ -121,23 +121,21 @@ class RucpyController extends Controller
 
     protected function txt2ruc(string $line): ?array
     {
-        $line = str_replace('||', '|', $line);
+		
         $data = explode('|', $line);
-
-        if (count($data) !== 5) {
-            return null;
-        }
 
         return array_merge([
             'nro_ruc' 				=> '----',
             'denominacion' 			=> '---',
             'digito_verificador' 	=> '-',
-            'ruc_anterior' 			=> '--'
+            'ruc_anterior' 			=> '--',
+            'estado' 			    => '--'
         ], array_filter([
             'nro_ruc' 				=> $data[0],
             'denominacion' 			=> $data[1],
             'digito_verificador' 	=> $data[2],
-            'ruc_anterior' 			=> $data[3]
+            'ruc_anterior' 			=> $data[3],
+            'estado' 			    => $data[4],
         ], 'trim'));
     }
 }
