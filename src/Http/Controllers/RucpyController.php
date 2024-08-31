@@ -124,6 +124,10 @@ class RucpyController extends Controller
 		
         $data = explode('|', $line);
 
+        if(count($data) > 6) {
+            return null;
+        }
+
         return array_merge([
             'nro_ruc' 				=> null,
             'denominacion' 			=> null,
