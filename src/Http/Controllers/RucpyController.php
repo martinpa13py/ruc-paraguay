@@ -125,11 +125,11 @@ class RucpyController extends Controller
         $data = explode('|', $line);
 
         return array_merge([
-            'nro_ruc' 				=> '----',
-            'denominacion' 			=> '---',
-            'digito_verificador' 	=> '-',
-            'ruc_anterior' 			=> '--',
-            'estado' 			    => '--'
+            'nro_ruc' 				=> null,
+            'denominacion' 			=> null,
+            'digito_verificador' 	=> null,
+            'ruc_anterior' 			=> null,
+            'estado' 			    => null,
         ], array_filter([
             'nro_ruc' 				=> $data[0],
             'denominacion' 			=> $data[1],
