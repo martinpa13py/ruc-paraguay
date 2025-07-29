@@ -198,10 +198,23 @@ class RucpyController extends Controller
             return null;
         }
 
+        // Clean and validate digito_verificador to ensure it's only a single digit 0-9
+        $digitoVerificador = trim($data[2] ?? '');
+        if (!empty($digitoVerificador)) {
+            // Remove any non-digit characters and take only the first character
+            $digitoVerificador = preg_replace('/[^0-9]/', '', $digitoVerificador);
+            $digitoVerificador = substr($digitoVerificador, 0, 1);
+            
+            // If it's empty after cleaning, set to null
+            if (empty($digitoVerificador)) {
+                $digitoVerificador = '';
+            }
+        }
+
         return [
             'nro_ruc' 				=> trim($data[0] ?? ''),
             'denominacion' 			=> trim($data[1] ?? ''),
-            'digito_verificador' 	=> trim($data[2] ?? ''),
+            'digito_verificador' 	=> $digitoVerificador,
             'ruc_anterior' 			=> trim($data[3] ?? ''),
             'estado' 			    => trim($data[4] ?? ''),
         ];
