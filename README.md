@@ -32,6 +32,31 @@ This are the artisan commands avaible, you should hook update the data at least 
 
 Fetchs and updates all the local data from the source. Will download several zip files, decompress to text files and load them into the database.
 
+**Opciones disponibles:**
+
+- `--force` : Fuerza la descarga borrando los archivos en caché antes de descargar (ignora la validación de 48 horas)
+- `--batch-size=1000` : Cantidad de registros a insertar por lote (mínimo 100). Útil para optimizar memoria/rendimiento.
+- `--limit=N` : Límite máximo de registros a importar. Útil para pruebas rápidas.
+
+**Ejemplos:**
+
+```bash
+# Descarga normal (respeta caché de 48h)
+php artisan ruc:update
+
+# Forzar descarga completa ignorando caché
+php artisan ruc:update --force
+
+# Importar solo 5000 registros (pruebas)
+php artisan ruc:update --limit=5000
+
+# Usar lotes de 2000 para mejor rendimiento
+php artisan ruc:update --batch-size=2000
+
+# Combinar opciones
+php artisan ruc:update --force --batch-size=500 --limit=10000
+```
+
 `php artisan ruc:search Castillo Pablo`
 
 Performs a searchs inside the database with the provided information. Will return  results and some debug info.
