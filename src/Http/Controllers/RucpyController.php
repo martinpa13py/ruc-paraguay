@@ -3,18 +3,11 @@
 namespace martinpa13py\RUCParaguay\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use GuzzleHttp\Client;
-use Illuminate\Support\Facades\Storage;
 use martinpa13py\RUCParaguay\Models\RucParaguaySet;
-use ZipArchive;
+use martinpa13py\RUCParaguay\Services\RUCParaguayUpdater;
 
 class RucpyController extends Controller
 {
-    protected string $url 			= 'https://www.dnit.gov.py/documents/20123/976078/';
-    protected string $folder 		= 'ruc-paraguay';
-    protected int $cacheDuration 	= 3600 * 24 * 2; // 2 days
-    protected int $batchSize 		= 1000; // Configurable batch size for database inserts
-
     public function search(string $busqueda)
     {
         return RucParaguaySet::query()
@@ -29,195 +22,25 @@ class RucpyController extends Controller
         return RucParaguaySet::create($data) !== null;
     }
 
-    public function download()
+    /**
+     * Descarga e importa los datos de RUC desde DNIT.
+     * Para compatibilidad con versiones anteriores, delega al servicio RUCParaguayUpdater.
+     */
+    public function download(?bool $force = null, ?int $batchSize = null, ?int $limit = null): void
     {
-        $startTime 		= time();
-        $storagePath 	= Storage::disk('local')->path($this->folder);
-        $client 		= new Client();
-        $newData 		= false;
-        $downloadedFiles = 0;
+        $updater = app(RUCParaguayUpdater::class);
 
-        echo "Starting RUC data download and import process...\n";
-
-        if (!Storage::disk('local')->exists($this->folder)) {
-            Storage::disk('local')->makeDirectory($this->folder, 0775, true);
-            echo "Created storage directory: {$this->folder}\n";
+        if ($force !== null) {
+            $updater->setForce($force);
+        }
+        if ($batchSize !== null) {
+            $updater->setBatchSize($batchSize);
+        }
+        if ($limit !== null) {
+            $updater->setLimit($limit);
         }
 
-        echo "Checking for new data files...\n";
-        foreach (range(0, 9) as $i) {
-            $filePath 	= "ruc{$i}.zip";
-            $url 		= "{$this->url}{$filePath}";
-
-            if ($this->isCached($filePath)) {
-                echo "  Skipping {$filePath} (cached)\n";
-                continue;
-            }
-
-            $newData = true;
-            $downloadedFiles++;
-            echo "  Downloading {$filePath}...\n";
-            $client->get($url, ['sink' => "{$storagePath}/{$filePath}"]);
-        }
-
-        if (!$newData) {
-            echo 'No new data to import. All files are cached.\n';
-            return;
-        }
-
-        echo "Downloaded {$downloadedFiles} new files.\n";
-        echo "Starting data extraction and import...\n";
-        
-        $extractStartTime = time();
-        $this->extractAndImportData($storagePath);
-        $extractTime = time() - $extractStartTime;
-
-        echo "Data extraction and import completed in {$extractTime} seconds\n";
-        echo "Total process completed in " . (time() - $startTime) . " seconds\n";
-    }
-
-    protected function isCached(string $filePath): bool
-    {
-        if (Storage::disk('local')->exists("{$this->folder}/{$filePath}")) {
-            $lastModified = Storage::disk('local')->lastModified("{$this->folder}/{$filePath}");
-            return (time() - $lastModified) < $this->cacheDuration;
-        }
-        return false;
-    }
-
-    protected function extractAndImportData(string $storagePath): void
-    {
-        $this->extractZipFiles($storagePath);
-        RucParaguaySet::truncate();
-
-        $txtFiles = array_filter(Storage::disk('local')->files($this->folder), function($file) {
-            return strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'txt';
-        });
-
-        $totalFiles = count($txtFiles);
-        $currentFile = 0;
-
-        foreach ($txtFiles as $txtFile) {
-            $currentFile++;
-            echo "Processing file {$currentFile}/{$totalFiles}: " . basename($txtFile) . "\n";
-            $this->importDataFromTxt($txtFile);
-        }
-    }
-
-    protected function extractZipFiles(string $storagePath): void
-    {
-        foreach (Storage::disk('local')->files($this->folder) as $zipFile) {
-            if (strtolower(pathinfo($zipFile, PATHINFO_EXTENSION)) === 'zip') {
-                $this->extractZip($zipFile, $storagePath);
-            }
-        }
-    }
-
-    protected function extractZip(string $zipFile, string $storagePath): void
-    {
-        $localZip = Storage::disk('local')->path($zipFile);
-        $zip = new ZipArchive;
-
-        if ($zip->open($localZip) === true) {
-            $zip->extractTo($storagePath);
-            $zip->close();
-        } else {
-            Storage::disk('local')->delete($zipFile);
-        }
-    }
-
-    protected function importDataFromTxt(string $txtFile): void
-    {
-        $localTxt = Storage::disk('local')->path($txtFile);
-        $batch = [];
-        $totalRecords = 0;
-        $processedRecords = 0;
-
-        if (($file = fopen($localTxt, 'r')) !== false) {
-            // Count total lines for progress reporting
-            $totalLines = 0;
-            while (fgets($file) !== false) {
-                $totalLines++;
-            }
-            rewind($file);
-            
-            echo "  Total lines to process: {$totalLines}\n";
-            
-            while (($line = fgets($file)) !== false) {
-                $data = $this->txt2ruc($line);
-                if ($data) {
-                    $batch[] = $data;
-                    $processedRecords++;
-                    
-                    // Insert batch when it reaches the batch size
-                    if (count($batch) >= $this->batchSize) {
-                        $this->addBatch($batch);
-                        $totalRecords += count($batch);
-                        echo "  Processed {$processedRecords}/{$totalLines} lines, inserted {$totalRecords} records\n";
-                        $batch = [];
-                    }
-                }
-            }
-            
-            // Insert remaining records in the last batch
-            if (!empty($batch)) {
-                $this->addBatch($batch);
-                $totalRecords += count($batch);
-            }
-            
-            echo "  Completed: {$totalRecords} records inserted\n";
-            fclose($file);
-        }
-    }
-
-    public function addBatch(array $dataArray): bool
-    {
-        try {
-            return RucParaguaySet::insert($dataArray);
-        } catch (\Exception $e) {
-            echo "Error inserting batch: " . $e->getMessage() . "\n";
-            return false;
-        }
-    }
-
-    public function setBatchSize(int $batchSize): void
-    {
-        $this->batchSize = $batchSize;
-    }
-
-    protected function txt2ruc(string $line): ?array
-    {
-        $line = trim($line);
-        if (empty($line)) {
-            return null;
-        }
-        
-        $data = explode('|', $line);
-
-        if (count($data) < 5) {
-            return null;
-        }
-
-        // Clean and validate digito_verificador to ensure it's only a single digit 0-9
-        $digitoVerificador = trim($data[2] ?? '');
-        if (!empty($digitoVerificador)) {
-            // Remove any non-digit characters and take only the first character
-            $digitoVerificador = preg_replace('/[^0-9]/', '', $digitoVerificador);
-            $digitoVerificador = substr($digitoVerificador, 0, 1);
-            
-            // If it's empty after cleaning, set to null
-            if (empty($digitoVerificador)) {
-                $digitoVerificador = '';
-            }
-        }
-
-        return [
-            'nro_ruc' 				=> trim($data[0] ?? ''),
-            'denominacion' 			=> trim($data[1] ?? ''),
-            'digito_verificador' 	=> $digitoVerificador,
-            'ruc_anterior' 			=> trim($data[3] ?? ''),
-            'estado' 			    => trim($data[4] ?? ''),
-        ];
+        $updater->run();
     }
 }
 
